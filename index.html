@@ -161,6 +161,17 @@
   .rc-p { background: #f5eef8; color: var(--private); }
   .rc-b { background: #eafaf1; color: var(--biz); }
 
+  .record-edit-hint { font-size: 10px; color: var(--ink3); margin-top: 2px; opacity: 0; transition: opacity .15s; }
+  .record:hover .record-edit-hint { opacity: 1; }
+
+  .edit-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 300; align-items: flex-end; justify-content: center; }
+  .edit-overlay.open { display: flex; }
+  .edit-sheet { background: var(--card); border-radius: 20px 20px 0 0; padding: 24px 20px 44px; width: 100%; max-width: 640px; animation: up .2s ease; max-height: 92vh; overflow-y: auto; }
+  .edit-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px; }
+  .btn-del-full { padding: 13px; border: 1.5px solid #ffdddd; border-radius: 11px; background: none; color: #e53; font-size: 15px; font-weight: 700; cursor: pointer; }
+  .btn-del-full:hover { background: #fff0f0; }
+
+  .toast { position: fixed; bottom: 80px;
   .toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%) translateY(10px); background: var(--ink); color: #fff; font-size: 13px; padding: 8px 18px; border-radius: 20px; opacity: 0; transition: all .2s; pointer-events: none; z-index: 400; white-space: nowrap; }
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 </style>
@@ -343,10 +354,67 @@
 
 <div class="toast" id="toast"></div>
 
+<!-- Edit Sheet -->
+<div class="edit-overlay" id="edit-overlay" onclick="editBgClose(event)">
+  <div class="edit-sheet">
+    <div class="sheet-title">編輯記帳 <button class="btn-x" onclick="closeEdit()">×</button></div>
+    <div class="frow">
+      <label>日期 ／ 時間</label>
+      <input type="datetime-local" id="e-dt">
+    </div>
+    <div class="frow">
+      <label>金額</label>
+      <input type="number" id="e-amount" placeholder="0" inputmode="decimal">
+    </div>
+    <div class="frow">
+      <label>誰</label>
+      <div class="seg seg-2">
+        <div class="seg-btn" id="ebtn-J" onclick="epick('who','J')">👨 Jovey</div>
+        <div class="seg-btn" id="ebtn-G" onclick="epick('who','G')">👩 Gracie</div>
+      </div>
+    </div>
+    <div class="frow">
+      <label>性質</label>
+      <div class="seg seg-2">
+        <div class="seg-btn" id="ebtn-p" onclick="epick('type','p')">🏠 私人</div>
+        <div class="seg-btn" id="ebtn-b" onclick="epick('type','b')">💼 事業</div>
+      </div>
+    </div>
+    <div class="frow">
+      <label>付款方式</label>
+      <div class="seg seg-2">
+        <div class="seg-btn" id="ebtn-cash" onclick="epick('pay','cash')">💵 現金</div>
+        <div class="seg-btn" id="ebtn-card" onclick="epick('pay','card')">💳 刷卡</div>
+      </div>
+      <div class="sub-options" id="ecash-options" style="display:none">
+        <div class="sub-btn" id="esub-現金"    onclick="epickSub('現金')"   >現金</div>
+        <div class="sub-btn" id="esub-Debit卡" onclick="epickSub('Debit卡')">Debit 卡</div>
+      </div>
+      <div class="sub-options" id="ecard-options" style="display:none">
+        <div class="sub-btn" id="esub-中信（正）"  onclick="epickSub('中信（正）')" >中信（正）</div>
+        <div class="sub-btn" id="esub-中信（副）"  onclick="epickSub('中信（副）')" >中信（副）</div>
+        <div class="sub-btn" id="esub-星展（正）"  onclick="epickSub('星展（正）')" >星展（正）</div>
+        <div class="sub-btn" id="esub-星展（副）"  onclick="epickSub('星展（副）')" >星展（副）</div>
+        <div class="sub-btn" id="esub-Line Pay"    onclick="epickSub('Line Pay')"   >Line Pay</div>
+        <div class="sub-btn" id="esub-台新"        onclick="epickSub('台新')"       >G's 台新</div>
+        <div class="sub-btn" id="esub-華南"        onclick="epickSub('華南')"       >J's 華南</div>
+      </div>
+    </div>
+    <div class="frow">
+      <label>備註</label>
+      <textarea id="e-note" placeholder="路易莎咖啡、停車費…"></textarea>
+    </div>
+    <div class="edit-actions">
+      <button class="btn-del-full" onclick="delFromEdit()">刪除</button>
+      <button class="btn-save" onclick="saveEdit()">儲存</button>
+    </div>
+  </div>
+</div>
+
 <!-- Firebase SDK -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFirestore, collection, addDoc, deleteDoc, updateDoc, doc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyA3uxIRNuh0A5Uk9CPwoA_Tp_rOECGgIg",
@@ -449,8 +517,9 @@ function renderList(list, elId, showDel) {
     const payLabel = r.sub || (r.pay==='cash'?'現金':'刷卡');
     const typeLabel = r.type==='p'?'私人':'事業';
     const dtLabel = r.dt ? formatDt(r.dt) : '';
-    const delBtn = showDel ? `<button class="btn-del" onclick="delRecord('${r.id}')">✕</button>` : '';
-    return `<div class="record">
+    const clickable = showDel ? `onclick="openEdit('${r.id}')" style="cursor:pointer"` : '';
+    const delBtn = showDel ? `<button class="btn-del" onclick="event.stopPropagation();delRecord('${r.id}')">✕</button>` : '';
+    return `<div class="record" ${clickable}>
       <div class="record-badges">
         <span class="badge badge-${r.who}">${r.who}</span>
         <span class="badge badge-${r.type}">${typeLabel}</span>
@@ -461,6 +530,7 @@ function renderList(list, elId, showDel) {
       </div>
       <div class="record-right">
         <div class="record-amount">${fmt(r.amount)}</div>
+        <div class="record-edit-hint">點擊編輯</div>
       </div>
       ${delBtn}
     </div>`;
@@ -649,6 +719,114 @@ window.exportCSV = function(mode) {
 };
 
 // ── TOAST ──
+let editSel = { who:'', type:'', pay:'', sub:'' };
+let editId = null;
+
+window.openEdit = function(id) {
+  const r = records.find(r => r.id === id);
+  if (!r) return;
+  editId = id;
+  editSel = { who: r.who, type: r.type, pay: r.pay, sub: r.sub || '' };
+
+  document.getElementById('e-dt').value = r.dt || '';
+  document.getElementById('e-amount').value = r.amount;
+  document.getElementById('e-note').value = r.note || '';
+
+  // Reset all buttons
+  ['J','G','p','b','cash','card'].forEach(k => {
+    const b = document.getElementById('ebtn-'+k); if(b) b.className='seg-btn';
+  });
+  document.querySelectorAll('[id^="esub-"]').forEach(b => b.className='sub-btn');
+
+  // Set who
+  const whoBtn = document.getElementById('ebtn-'+r.who);
+  if(whoBtn) whoBtn.className = 'seg-btn on-'+r.who;
+
+  // Set type
+  const typeBtn = document.getElementById('ebtn-'+r.type);
+  if(typeBtn) typeBtn.className = 'seg-btn on-'+r.type;
+
+  // Set pay
+  const payBtn = document.getElementById('ebtn-'+r.pay);
+  if(payBtn) payBtn.className = 'seg-btn on-pay';
+  document.getElementById('ecash-options').style.display = r.pay==='cash' ? 'flex' : 'none';
+  document.getElementById('ecard-options').style.display = r.pay==='card' ? 'flex' : 'none';
+
+  // Set sub
+  if(r.sub) {
+    const subBtn = document.getElementById('esub-'+r.sub);
+    if(subBtn) subBtn.className = 'sub-btn ' + (r.pay==='cash' ? 'on-cash-sub' : 'on-card-sub');
+  }
+
+  document.getElementById('edit-overlay').classList.add('open');
+};
+
+window.closeEdit = function() { document.getElementById('edit-overlay').classList.remove('open'); };
+window.editBgClose = function(e) { if(e.target.id==='edit-overlay') window.closeEdit(); };
+
+window.epick = function(group, val) {
+  editSel[group] = val;
+  if(group==='who'){
+    document.getElementById('ebtn-J').className='seg-btn'+(val==='J'?' on-J':'');
+    document.getElementById('ebtn-G').className='seg-btn'+(val==='G'?' on-G':'');
+  }
+  if(group==='type'){
+    document.getElementById('ebtn-p').className='seg-btn'+(val==='p'?' on-p':'');
+    document.getElementById('ebtn-b').className='seg-btn'+(val==='b'?' on-b':'');
+  }
+  if(group==='pay'){
+    document.getElementById('ebtn-cash').className='seg-btn'+(val==='cash'?' on-pay':'');
+    document.getElementById('ebtn-card').className='seg-btn'+(val==='card'?' on-pay':'');
+    document.getElementById('ecash-options').style.display=val==='cash'?'flex':'none';
+    document.getElementById('ecard-options').style.display=val==='card'?'flex':'none';
+    document.querySelectorAll('[id^="esub-"]').forEach(b=>b.className='sub-btn');
+    editSel.sub='';
+  }
+};
+
+window.epickSub = function(val) {
+  editSel.sub = val;
+  const isCash = editSel.pay==='cash';
+  document.querySelectorAll('[id^="esub-"]').forEach(b=>b.className='sub-btn');
+  const btn = document.getElementById('esub-'+val);
+  if(btn) btn.className='sub-btn '+(isCash?'on-cash-sub':'on-card-sub');
+};
+
+window.saveEdit = async function() {
+  const amount = parseFloat(document.getElementById('e-amount').value);
+  if(!amount||amount<=0){toast('請輸入金額');return;}
+  if(!editSel.who){toast('請選擇 Jovey 或 Gracie');return;}
+  if(!editSel.type){toast('請選擇私人或事業');return;}
+  if(!editSel.pay){toast('請選擇現金或刷卡');return;}
+  if(!editSel.sub){toast('請選擇付款細項');return;}
+  const dt = document.getElementById('e-dt').value;
+  const note = document.getElementById('e-note').value.trim();
+  const month = dt ? dt.slice(0,7) : monthKey();
+  setSyncDot('syncing');
+  try {
+    await updateDoc(doc(db, 'records', editId), { month, dt, amount, who:editSel.who, type:editSel.type, pay:editSel.pay, sub:editSel.sub, note });
+    window.closeEdit();
+    toast('已更新 ✓');
+  } catch(e) {
+    console.error(e);
+    setSyncDot('err');
+    toast('更新失敗，請重試');
+  }
+};
+
+window.delFromEdit = async function() {
+  if(!confirm('刪除這筆？')) return;
+  setSyncDot('syncing');
+  try {
+    await deleteDoc(doc(db, 'records', editId));
+    window.closeEdit();
+    toast('已刪除');
+  } catch(e) {
+    setSyncDot('err');
+    toast('刪除失敗');
+  }
+};
+
 window.toast = function(msg) {
   const t=document.getElementById('toast');
   t.textContent=msg; t.classList.add('show');
