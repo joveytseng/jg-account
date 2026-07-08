@@ -71,6 +71,9 @@ header{background:var(--card);border-bottom:1px solid var(--border);padding:0 16
 .budget-remain.warn{color:#e67e22;font-weight:600;} .budget-remain.over{color:#e74c3c;font-weight:700;}
 
 /* ADVANCE BAR */
+.section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+.section-header span:first-child{font-size:11px;font-weight:700;color:var(--ink3);letter-spacing:.5px;text-transform:uppercase;}
+.section-total{font-size:13px;font-weight:800;color:var(--ink);}
 .adv-bar{background:var(--card);border-radius:12px;padding:11px 14px;border:1.5px solid var(--adv);margin-bottom:12px;display:none;cursor:pointer;align-items:center;justify-content:space-between;}
 .adv-bar.show{display:flex;}
 .adv-bar-left{display:flex;align-items:center;gap:8px;}
@@ -167,6 +170,8 @@ input[type=datetime-local],input[type=date]{color-scheme:light;}
 .chip.on-p{border-color:var(--pri);background:#f5eef8;color:var(--pri);}
 .chip.on-b{border-color:var(--biz);background:#eafaf1;color:var(--biz);}
 .chip.on-pay{border-color:var(--cardp);background:#ebf5fb;color:var(--cardp);}
+.chip.on-adv{border-color:var(--adv);background:#fef9ec;color:var(--adv);}
+.chip.on-rec{border-color:var(--biz);background:#eafaf1;color:var(--biz);}
 .kw-wrap{position:relative;}
 .kw-wrap input{padding-right:36px;}
 .btn-clr-kw{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--ink3);cursor:pointer;font-size:16px;}
@@ -364,6 +369,15 @@ input[type=datetime-local],input[type=date]{color-scheme:light;}
         <div class="kw-wrap">
           <input type="text" id="s-kw" placeholder="搜尋備註…">
           <button class="btn-clr-kw" onclick="document.getElementById('s-kw').value=''">×</button>
+        </div>
+      </div>
+      <div class="frow">
+        <label>類型篩選</label>
+        <div class="chips">
+          <div class="chip" id="sc-adv"   onclick="toggleAdvFilter()">💸 代付（未回收）</div>
+          <div class="chip" id="sc-rec"   onclick="toggleRecFilter()">✅ 代付（已回收）</div>
+          <div class="chip" id="sc-sp"    onclick="toggleSpFilter()">⭐ 特別支出</div>
+          <div class="chip" id="sc-daily" onclick="toggleDailyFilter()">📋 日常支出</div>
         </div>
       </div>
       <div class="search-actions">
@@ -590,7 +604,7 @@ let budgetB = parseInt(localStorage.getItem('bdg_b') || '0');
 let fSel = { who:'', type:'', pay:'', sub:'', adv:false, special:false };
 let eSel = { who:'', type:'', pay:'', sub:'', adv:false, special:false };
 let editId = null;
-let sSel  = { who: new Set(), type: new Set(), pay: new Set() };
+let sSel  = { who: new Set(), type: new Set(), pay: new Set(), advOnly:false, recOnly:false, spOnly:false, dailyOnly:false };
 
 const now = new Date();
 curYear = now.getFullYear(); curMonth = now.getMonth();
@@ -1069,6 +1083,27 @@ window.togglePay = val => {
   if(set.has(val)){set.delete(val);el.className='chip';}
   else{set.add(val);el.className='chip on-pay';}
 };
+window.toggleAdvFilter = () => {
+  sSel.advOnly=!sSel.advOnly; sSel.recOnly=false; sSel.spOnly=false; sSel.dailyOnly=false;
+  document.getElementById('sc-adv').className='chip'+(sSel.advOnly?' on-adv':'');
+  ['sc-rec','sc-sp','sc-daily'].forEach(id=>document.getElementById(id).className='chip');
+};
+window.toggleRecFilter = () => {
+  sSel.recOnly=!sSel.recOnly; sSel.advOnly=false; sSel.spOnly=false; sSel.dailyOnly=false;
+  document.getElementById('sc-rec').className='chip'+(sSel.recOnly?' on-rec':'');
+  ['sc-adv','sc-sp','sc-daily'].forEach(id=>document.getElementById(id).className='chip');
+};
+window.toggleSpFilter = () => {
+  sSel.spOnly=!sSel.spOnly; sSel.advOnly=false; sSel.recOnly=false; sSel.dailyOnly=false;
+  document.getElementById('sc-sp').className='chip'+(sSel.spOnly?' on-adv':'');
+  ['sc-adv','sc-rec','sc-daily'].forEach(id=>document.getElementById(id).className='chip');
+};
+window.toggleDailyFilter = () => {
+  sSel.dailyOnly=!sSel.dailyOnly; sSel.advOnly=false; sSel.recOnly=false; sSel.spOnly=false;
+  document.getElementById('sc-daily').className='chip'+(sSel.dailyOnly?' on-pay':'');
+  ['sc-adv','sc-rec','sc-sp'].forEach(id=>document.getElementById(id).className='chip');
+};
+
 window.doSearch = () => {
   const from=document.getElementById('s-from').value;
   const to=document.getElementById('s-to').value;
@@ -1079,6 +1114,10 @@ window.doSearch = () => {
   if(sSel.who.size)  res=res.filter(r=>sSel.who.has(r.who));
   if(sSel.type.size) res=res.filter(r=>sSel.type.has(r.type));
   if(sSel.pay.size)  res=res.filter(r=>sSel.pay.has(r.sub));
+  if(sSel.advOnly)   res=res.filter(r=>r.advance&&!r.recovered);
+  if(sSel.recOnly)   res=res.filter(r=>r.advance&&r.recovered);
+  if(sSel.spOnly)    res=res.filter(r=>r.special);
+  if(sSel.dailyOnly) res=res.filter(r=>!r.special);
   if(kw) res=res.filter(r=>(r.note||'').toLowerCase().includes(kw));
   lastSearch=res;
   const rb=document.getElementById('result-box'), sl=document.getElementById('search-list');
@@ -1098,7 +1137,7 @@ window.doSearch = () => {
 };
 window.resetSearch = () => {
   document.getElementById('s-from').value=''; document.getElementById('s-to').value=''; document.getElementById('s-kw').value='';
-  sSel={who:new Set(),type:new Set(),pay:new Set()};
+  sSel={who:new Set(),type:new Set(),pay:new Set(),advOnly:false,recOnly:false,spOnly:false,dailyOnly:false};
   document.querySelectorAll('.chip').forEach(c=>c.className='chip');
   document.getElementById('sc-all-pay').className='chip';
   document.getElementById('sc-cash-all').className='chip';
