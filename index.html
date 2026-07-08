@@ -232,8 +232,8 @@ input[type=datetime-local],input[type=date]{color-scheme:light;}
           <div class="sum-card-name" style="color:var(--J)">JOVEY</div>
           <div class="filter-badge" id="fbadge-J">✓</div>
         </div>
-        <div class="sum-row"><span class="sum-label">私人</span><span class="sum-val tag-p" id="j-p">$0</span></div>
-        <div class="sum-row"><span class="sum-label">事業</span><span class="sum-val tag-b" id="j-b">$0</span></div>
+        <div class="sum-row"><span class="sum-label">私人日常</span><span class="sum-val tag-p" id="j-p">$0</span></div>
+        <div class="sum-row"><span class="sum-label">事業日常</span><span class="sum-val tag-b" id="j-b">$0</span></div>
         <div class="sum-divider"></div>
         <div class="sum-row"><span class="sum-label">日常小計</span><span class="sum-val" id="j-daily">$0</span></div>
         <div class="sum-row"><span class="sum-label">特別支出</span><span class="sum-val sum-special" id="j-special">$0</span></div>
@@ -246,8 +246,8 @@ input[type=datetime-local],input[type=date]{color-scheme:light;}
           <div class="sum-card-name" style="color:var(--G)">GRACIE</div>
           <div class="filter-badge" id="fbadge-G">✓</div>
         </div>
-        <div class="sum-row"><span class="sum-label">私人</span><span class="sum-val tag-p" id="g-p">$0</span></div>
-        <div class="sum-row"><span class="sum-label">事業</span><span class="sum-val tag-b" id="g-b">$0</span></div>
+        <div class="sum-row"><span class="sum-label">私人日常</span><span class="sum-val tag-p" id="g-p">$0</span></div>
+        <div class="sum-row"><span class="sum-label">事業日常</span><span class="sum-val tag-b" id="g-b">$0</span></div>
         <div class="sum-divider"></div>
         <div class="sum-row"><span class="sum-label">日常小計</span><span class="sum-val" id="g-daily">$0</span></div>
         <div class="sum-row"><span class="sum-label">特別支出</span><span class="sum-val sum-special" id="g-special">$0</span></div>
@@ -641,28 +641,36 @@ function render() {
 
   // summary cards (always full data)
   // 分日常/特別計算
-  let jp=0,jb=0,gp=0,gb=0; // 私人/事業（含全部）
-  let jDaily=0,gDaily=0,jSp=0,gSp=0; // 日常/特別
-  let dailyP=0,dailyB=0; // 日常私人/事業（for 預算條）
+  let jp=0,jb=0,gp=0,gb=0;         // 私人/事業（只算日常）
+  let jSp=0,gSp=0;                  // 特別支出
+  let jDaily=0,gDaily=0;            // 日常小計
+  let dailyP=0,dailyB=0;            // 日常私人/事業（for 預算條）
   all.forEach(r => {
     const isSpecial = !!r.special;
-    if(r.who==='J'&&r.type==='p'){jp+=r.amount; if(isSpecial)jSp+=r.amount; else jDaily+=r.amount;}
-    if(r.who==='J'&&r.type==='b'){jb+=r.amount; if(isSpecial)jSp+=r.amount; else jDaily+=r.amount;}
-    if(r.who==='G'&&r.type==='p'){gp+=r.amount; if(isSpecial)gSp+=r.amount; else gDaily+=r.amount;}
-    if(r.who==='G'&&r.type==='b'){gb+=r.amount; if(isSpecial)gSp+=r.amount; else gDaily+=r.amount;}
-    if(!isSpecial&&r.type==='p') dailyP+=r.amount;
-    if(!isSpecial&&r.type==='b') dailyB+=r.amount;
+    if(isSpecial) {
+      // 特別支出：只加到特別
+      if(r.who==='J') jSp+=r.amount;
+      if(r.who==='G') gSp+=r.amount;
+    } else {
+      // 日常：分私人/事業
+      if(r.who==='J'&&r.type==='p'){jp+=r.amount; jDaily+=r.amount;}
+      if(r.who==='J'&&r.type==='b'){jb+=r.amount; jDaily+=r.amount;}
+      if(r.who==='G'&&r.type==='p'){gp+=r.amount; gDaily+=r.amount;}
+      if(r.who==='G'&&r.type==='b'){gb+=r.amount; gDaily+=r.amount;}
+      if(r.type==='p') dailyP+=r.amount;
+      if(r.type==='b') dailyB+=r.amount;
+    }
   });
   document.getElementById('j-p').textContent=fmt(jp);
   document.getElementById('j-b').textContent=fmt(jb);
   document.getElementById('j-daily').textContent=fmt(jDaily);
   document.getElementById('j-special').textContent=fmt(jSp);
-  document.getElementById('j-total').textContent=fmt(jp+jb);
+  document.getElementById('j-total').textContent=fmt(jDaily+jSp);
   document.getElementById('g-p').textContent=fmt(gp);
   document.getElementById('g-b').textContent=fmt(gb);
   document.getElementById('g-daily').textContent=fmt(gDaily);
   document.getElementById('g-special').textContent=fmt(gSp);
-  document.getElementById('g-total').textContent=fmt(gp+gb);
+  document.getElementById('g-total').textContent=fmt(gDaily+gSp);
 
   // 預算條只算日常
   document.getElementById('bp-spent').textContent = fmt(dailyP);
