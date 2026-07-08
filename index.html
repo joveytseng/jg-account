@@ -182,6 +182,8 @@ input[type=datetime-local],input[type=date]{color-scheme:light;}
 .rc{font-size:12px;padding:4px 10px;border-radius:20px;font-weight:600;}
 .rc-J{background:#fdf0ec;color:var(--J);} .rc-G{background:#e8f0fb;color:var(--G);}
 .rc-p{background:#f5eef8;color:var(--pri);} .rc-b{background:#eafaf1;color:var(--biz);}
+.chip.on-adv{border-color:var(--adv);background:#fef9ec;color:var(--adv);}
+.chip.on-rec{border-color:var(--biz);background:#eafaf1;color:var(--biz);}
 
 /* ADVANCE DETAIL SHEET */
 .adv-rec{background:var(--bg);border-radius:10px;padding:11px 13px;margin-bottom:8px;display:flex;align-items:center;gap:10px;border:1px solid var(--border);}
@@ -286,6 +288,15 @@ input[type=datetime-local],input[type=date]{color-scheme:light;}
     <div class="record-list" id="record-list">
       <div class="empty"><div class="empty-icon">📋</div>載入中…</div>
     </div>
+
+    <!-- 代付獨立區塊 -->
+    <div id="adv-section" style="display:none;margin-top:20px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div class="list-header" style="margin-bottom:0">💸 代付未回收</div>
+        <div style="font-size:13px;font-weight:800;color:var(--adv)" id="adv-section-total"></div>
+      </div>
+      <div class="record-list" id="adv-section-list"></div>
+    </div>
   </div>
 </div>
 
@@ -333,6 +344,13 @@ input[type=datetime-local],input[type=date]{color-scheme:light;}
         <div class="kw-wrap">
           <input type="text" id="s-kw" placeholder="搜尋備註…">
           <button class="btn-clr-kw" onclick="document.getElementById('s-kw').value=''">×</button>
+        </div>
+      </div>
+      <div class="frow">
+        <label>代付篩選</label>
+        <div class="chips">
+          <div class="chip" id="sc-adv" onclick="toggleAdvFilter()">💸 只看代付（未回收）</div>
+          <div class="chip" id="sc-rec" onclick="toggleRecFilter()">✅ 只看已回收</div>
         </div>
       </div>
       <div class="search-actions">
@@ -521,7 +539,7 @@ window._fbReady = fns => {
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, collection, addDoc, deleteDoc, updateDoc, doc, onSnapshot, query, orderBy }
+import { getFirestore, collection, addDoc, deleteDoc, updateDoc, setDoc, doc, onSnapshot, query, orderBy }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -542,12 +560,12 @@ let records = [];
 let curYear, curMonth;
 let whoFilter = '';
 let lastSearch = [];
-let budgetP = parseInt(localStorage.getItem('bdg_p') || '0');
-let budgetB = parseInt(localStorage.getItem('bdg_b') || '0');
+let budgetP = 0;
+let budgetB = 0;
 let fSel = { who:'', type:'', pay:'', sub:'', adv:false };
 let eSel = { who:'', type:'', pay:'', sub:'', adv:false };
 let editId = null;
-let sSel  = { who: new Set(), type: new Set(), pay: new Set() };
+let sSel  = { who: new Set(), type: new Set(), pay: new Set(), advOnly: false, recOnly: false };
 
 const now = new Date();
 curYear = now.getFullYear(); curMonth = now.getMonth();
@@ -561,6 +579,18 @@ onSnapshot(query(col, orderBy('createdAt','desc')), snap => {
   setSyncDot('ok');
   render();
 }, () => { setSyncDot('err'); toast('同步失敗'); });
+
+// 監聽預算設定
+onSnapshot(doc(db,'settings','budget'), snap => {
+  if (snap.exists()) {
+    const d = snap.data();
+    budgetP = d.budgetP || 0;
+    budgetB = d.budgetB || 0;
+    document.getElementById('set-p').value = budgetP || '';
+    document.getElementById('set-b').value = budgetB || '';
+    render();
+  }
+});
 
 // ── UTILS ──
 const fmt = n => '$' + Math.round(n).toLocaleString('zh-TW');
@@ -646,6 +676,29 @@ function render() {
     fl.classList.add('show');
   } else {
     fl.classList.remove('show');
+  }
+
+  // 代付獨立區塊
+  const advSec = document.getElementById('adv-section');
+  const advList = records.filter(r => r.month === mk && r.advance && !r.recovered);
+  if (advList.length) {
+    advSec.style.display = 'block';
+    const advTotal = advList.reduce((s,r)=>s+r.amount,0);
+    document.getElementById('adv-section-total').textContent = `合計 ${fmt(advTotal)}`;
+    const sorted = [...advList].sort((a,b)=>((b.dt||String(b.createdAt||0))>(a.dt||String(a.createdAt||0)))?1:-1);
+    document.getElementById('adv-section-list').innerHTML = sorted.map(r => `
+      <div class="adv-rec" style="background:var(--card);border-radius:0;border:none;border-bottom:1px solid var(--border);padding:10px 12px;">
+        <div class="adv-rec-info">
+          <div class="adv-rec-note" style="font-size:14px">${r.note||'—'}</div>
+          <div class="adv-rec-meta">${r.who==='J'?'Jovey':'Gracie'}・${r.dt?formatDt(r.dt):r.month}・${r.sub||''}</div>
+        </div>
+        <div class="adv-rec-right">
+          <div class="adv-rec-amount">${fmt(r.amount)}</div>
+          <button class="btn-recover" onclick="recoverAdv('${r.id}')">✓ 已回收</button>
+        </div>
+      </div>`).join('');
+  } else {
+    advSec.style.display = 'none';
   }
 }
 
@@ -941,14 +994,15 @@ window.recoverAdv = async id => {
 };
 
 // ── BUDGET SETTINGS ──
-window.saveBudget = () => {
+window.saveBudget = async () => {
   budgetP=parseInt(document.getElementById('set-p').value)||0;
   budgetB=parseInt(document.getElementById('set-b').value)||0;
-  localStorage.setItem('bdg_p',budgetP); localStorage.setItem('bdg_b',budgetB);
-  toast('預算已儲存 ✓');
-  render();
-  // 自動跳回首頁讓你馬上看到結果
-  setTimeout(() => goPage('home'), 800);
+  setSyncDot('syncing');
+  try {
+    await setDoc(doc(db,'settings','budget'), {budgetP, budgetB});
+    toast('預算已儲存 ✓');
+    setTimeout(() => goPage('home'), 800);
+  } catch(e) { setSyncDot('err'); toast('儲存失敗'); }
 };
 
 // ── SEARCH ──
@@ -962,6 +1016,16 @@ window.togglePay = val => {
   if(set.has(val)){set.delete(val);el.className='chip';}
   else{set.add(val);el.className='chip on-pay';}
 };
+window.toggleAdvFilter = () => {
+  sSel.advOnly = !sSel.advOnly;
+  if(sSel.advOnly) { sSel.recOnly=false; document.getElementById('sc-rec').className='chip'; }
+  document.getElementById('sc-adv').className='chip'+(sSel.advOnly?' on-adv':'');
+};
+window.toggleRecFilter = () => {
+  sSel.recOnly = !sSel.recOnly;
+  if(sSel.recOnly) { sSel.advOnly=false; document.getElementById('sc-adv').className='chip'; }
+  document.getElementById('sc-rec').className='chip'+(sSel.recOnly?' on-rec':'');
+};
 window.doSearch = () => {
   const from=document.getElementById('s-from').value;
   const to=document.getElementById('s-to').value;
@@ -972,6 +1036,8 @@ window.doSearch = () => {
   if(sSel.who.size)  res=res.filter(r=>sSel.who.has(r.who));
   if(sSel.type.size) res=res.filter(r=>sSel.type.has(r.type));
   if(sSel.pay.size)  res=res.filter(r=>sSel.pay.has(r.sub));
+  if(sSel.advOnly) res=res.filter(r=>r.advance&&!r.recovered);
+  if(sSel.recOnly) res=res.filter(r=>r.advance&&r.recovered);
   if(kw) res=res.filter(r=>(r.note||'').toLowerCase().includes(kw));
   lastSearch=res;
   const rb=document.getElementById('result-box'), sl=document.getElementById('search-list');
@@ -991,7 +1057,7 @@ window.doSearch = () => {
 };
 window.resetSearch = () => {
   document.getElementById('s-from').value=''; document.getElementById('s-to').value=''; document.getElementById('s-kw').value='';
-  sSel={who:new Set(),type:new Set(),pay:new Set()};
+  sSel={who:new Set(),type:new Set(),pay:new Set(),advOnly:false,recOnly:false};
   document.querySelectorAll('.chip').forEach(c=>c.className='chip');
   document.getElementById('result-box').classList.remove('show');
   document.getElementById('search-list').style.display='none';
