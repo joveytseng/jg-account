@@ -721,6 +721,61 @@ function render() {
   } else {
     fl.classList.remove('show');
   }
+
+  // 代付未回收區塊
+  const advList = all.filter(r => r.advance && !r.recovered);
+  const advSec = document.getElementById('adv-section');
+  if (advList.length) {
+    advSec.style.display = 'block';
+    document.getElementById('adv-section-total').textContent = fmt(advList.reduce((s,r)=>s+r.amount,0));
+    const advSorted = [...advList].sort((a,b)=>((b.dt||String(b.createdAt||0))>(a.dt||String(a.createdAt||0)))?1:-1);
+    document.getElementById('adv-section-list').innerHTML = advSorted.map(r => `
+      <div style="background:var(--card);border-bottom:1px solid var(--border);padding:10px 12px;display:flex;align-items:center;gap:10px;">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:14px;font-weight:600">${r.note||'—'}</div>
+          <div style="font-size:11px;color:var(--ink3);margin-top:2px">${r.who==='J'?'Jovey':'Gracie'}・${r.dt?formatDt(r.dt):r.month}・${r.sub||''}</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <div style="font-size:15px;font-weight:700;color:var(--adv)">${fmt(r.amount)}</div>
+          <button class="btn-recover" onclick="recoverAdv('${r.id}')">✓ 已回收</button>
+        </div>
+      </div>`).join('');
+  } else {
+    advSec.style.display = 'none';
+  }
+
+  // 特別支出區塊
+  const spList = all.filter(r => r.special);
+  const spSec = document.getElementById('special-section');
+  if (spList.length) {
+    spSec.style.display = 'block';
+    document.getElementById('special-section-total').textContent = fmt(spList.reduce((s,r)=>s+r.amount,0));
+    const spSorted = [...spList].sort((a,b)=>((b.dt||String(b.createdAt||0))>(a.dt||String(a.createdAt||0)))?1:-1);
+    document.getElementById('special-section-list').innerHTML = spSorted.map(r => {
+      const payLabel = r.sub||(r.pay==='cash'?'現金':'刷卡');
+      const typeLabel = r.type==='p'?'私人':'事業';
+      const dtLabel = r.dt?formatDt(r.dt):'';
+      return `<div class="record-wrap" id="wrap-${r.id}">
+        <button class="swipe-del-btn" onclick="doDelId('${r.id}')"><span class="di">🗑</span>刪除</button>
+        <div class="record" data-id="${r.id}">
+          <div class="record-badges">
+            <span class="badge badge-${r.who}">${r.who}</span>
+            <span class="badge badge-${r.type}">${typeLabel}</span>
+          </div>
+          <div class="record-mid">
+            <div class="record-note">${r.note||'—'}<span class="adv-badge" style="background:#fef9ec;color:#e67e22;margin-left:5px">特別</span></div>
+            <div class="record-meta">${[dtLabel,payLabel].filter(Boolean).join('・')}</div>
+          </div>
+          <div class="record-right">
+            <div class="record-amount">${fmt(r.amount)}</div>
+            <div class="record-hint">長按編輯・左滑刪除</div>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  } else {
+    spSec.style.display = 'none';
+  }
 }
 
 function renderBudgetBar(key, spent, budget) {
