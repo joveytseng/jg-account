@@ -1,0 +1,1040 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CashFlow</title>
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="icon" type="image/png" href="icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="CashFlow">
+<meta name="theme-color" content="#0d2b1a">
+<style>
+:root {
+  --bg:#f5f5f0; --card:#fff; --ink:#1c1c1e; --ink2:#636366; --ink3:#aeaeb2;
+  --border:#e5e5ea; --G:#2c7be5; --J:#e5512c; --pri:#8e44ad; --biz:#27ae60;
+  --cash:#e67e22; --cardp:#2980b9; --adv:#f39c12;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:-apple-system,'PingFang TC',sans-serif;background:var(--bg);color:var(--ink);min-height:100vh;}
+
+/* HEADER */
+header{background:var(--card);border-bottom:1px solid var(--border);padding:0 16px;height:52px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;}
+.logo{font-size:17px;font-weight:700;}
+.logo .j{color:var(--J);} .logo .amp{color:var(--ink3);margin:0 3px;font-weight:300;} .logo .g{color:var(--G);}
+.sync-dot{width:8px;height:8px;border-radius:50%;background:var(--ink3);display:inline-block;margin-left:6px;transition:background .3s;}
+.sync-dot.syncing{background:#f39c12;} .sync-dot.ok{background:#27ae60;} .sync-dot.err{background:#e74c3c;}
+.month-nav{display:flex;align-items:center;gap:4px;}
+.month-nav button{background:none;border:none;cursor:pointer;color:var(--ink2);font-size:20px;width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;}
+.month-nav button:hover{background:var(--border);}
+#month-label{font-size:14px;font-weight:600;min-width:90px;text-align:center;}
+
+/* BOTTOM NAV */
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--border);display:flex;z-index:150;height:62px;}
+.nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;background:none;border:none;cursor:pointer;font-size:11px;font-weight:600;color:var(--ink3);}
+.nav-btn .nav-icon{font-size:20px;}
+.nav-btn.active{color:var(--ink);}
+
+/* PAGES */
+.page{display:none;}
+.page.active{display:block;}
+.container{max-width:640px;margin:0 auto;padding:16px 14px 90px;}
+
+/* SUMMARY CARDS */
+.summary-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;}
+.sum-card{background:var(--card);border-radius:12px;padding:13px 14px;border:1px solid var(--border);cursor:pointer;transition:box-shadow .15s,transform .12s;}
+.sum-card:active{transform:scale(.97);}
+.sum-card.active-J{border-color:var(--J);box-shadow:0 0 0 2px var(--J);}
+.sum-card.active-G{border-color:var(--G);box-shadow:0 0 0 2px var(--G);}
+.sum-card-header{display:flex;align-items:center;gap:6px;margin-bottom:8px;}
+.who-dot{width:8px;height:8px;border-radius:50%;}
+.sum-card-name{font-size:12px;font-weight:700;letter-spacing:.4px;}
+.filter-badge{margin-left:auto;font-size:10px;font-weight:700;background:var(--ink);color:#fff;border-radius:10px;padding:1px 7px;display:none;}
+.sum-row{display:flex;justify-content:space-between;margin-bottom:3px;}
+.sum-label{font-size:11px;color:var(--ink3);}
+.sum-val{font-size:13px;font-weight:600;}
+.tag-p{color:var(--pri);} .tag-b{color:var(--biz);}
+.sum-total{font-size:18px;font-weight:800;margin-top:6px;border-top:1px solid var(--border);padding-top:6px;}
+
+/* BUDGET BARS */
+.budget-section{display:flex;flex-direction:column;gap:8px;margin-bottom:12px;}
+.budget-row{background:var(--card);border-radius:12px;padding:12px 14px;border:1px solid var(--border);}
+.budget-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;}
+.budget-lbl{font-size:12px;font-weight:700;color:var(--ink2);}
+.budget-nums{font-size:12px;color:var(--ink3);}
+.budget-nums strong{color:var(--ink);font-weight:700;}
+.bbar-bg{height:7px;border-radius:4px;background:var(--border);overflow:hidden;}
+.bbar-fill{height:100%;border-radius:4px;transition:width .4s ease;}
+.bbar-fill.pri{background:var(--pri);} .bbar-fill.biz{background:var(--biz);} .bbar-fill.over{background:#e74c3c;}
+.budget-remain{font-size:11px;margin-top:5px;color:var(--ink3);}
+.budget-remain.warn{color:#e67e22;font-weight:600;} .budget-remain.over{color:#e74c3c;font-weight:700;}
+
+/* ADVANCE BAR */
+.adv-bar{background:var(--card);border-radius:12px;padding:11px 14px;border:1.5px solid var(--adv);margin-bottom:12px;display:none;cursor:pointer;align-items:center;justify-content:space-between;}
+.adv-bar.show{display:flex;}
+.adv-bar-left{display:flex;align-items:center;gap:8px;}
+.adv-title{font-size:13px;font-weight:700;color:var(--adv);}
+.adv-sub{font-size:11px;color:var(--ink3);margin-top:1px;}
+.adv-total{font-size:16px;font-weight:800;color:var(--adv);}
+
+/* TOOLBAR */
+.toolbar{display:flex;justify-content:flex-end;margin-bottom:12px;}
+.btn-export{background:none;border:1.5px solid var(--border);border-radius:8px;padding:6px 14px;font-size:13px;font-weight:600;color:var(--ink2);cursor:pointer;}
+.btn-export:hover{border-color:var(--ink2);color:var(--ink);}
+
+/* LIST */
+.list-header{font-size:11px;font-weight:700;color:var(--ink3);letter-spacing:.5px;text-transform:uppercase;margin-bottom:8px;}
+.filter-label{font-size:12px;color:var(--ink3);margin-bottom:6px;display:none;}
+.filter-label.show{display:block;}
+.record-list{display:flex;flex-direction:column;gap:1px;background:var(--border);border-radius:12px;overflow:hidden;border:1px solid var(--border);}
+.record-wrap{position:relative;overflow:hidden;background:#ff3b30;}
+.record-wrap:first-child{border-radius:12px 12px 0 0;} .record-wrap:last-child{border-radius:0 0 12px 12px;} .record-wrap:only-child{border-radius:12px;}
+.swipe-del-btn{position:absolute;right:0;top:0;bottom:0;width:80px;background:#ff3b30;display:flex;align-items:center;justify-content:center;cursor:pointer;border:none;color:#fff;font-size:13px;font-weight:700;flex-direction:column;gap:3px;}
+.swipe-del-btn .di{font-size:18px;}
+.record{background:var(--card);display:grid;grid-template-columns:42px 1fr auto;align-items:center;padding:10px 12px;transform:translateX(0);transition:transform .25s ease;touch-action:pan-y;user-select:none;}
+.record.swiped{transform:translateX(-80px);}
+.record-badges{display:flex;flex-direction:column;gap:3px;}
+.badge{font-size:10px;font-weight:700;padding:2px 5px;border-radius:4px;letter-spacing:.3px;line-height:1.3;}
+.badge-G{background:#e8f0fb;color:var(--G);} .badge-J{background:#fdf0ec;color:var(--J);}
+.badge-p{background:#f5eef8;color:var(--pri);} .badge-b{background:#eafaf1;color:var(--biz);}
+.record-mid{padding:0 10px;min-width:0;}
+.record-note{font-size:14px;color:var(--ink);word-break:break-all;line-height:1.4;}
+.record-meta{font-size:11px;color:var(--ink3);margin-top:2px;}
+.record-right{text-align:right;flex-shrink:0;}
+.record-amount{font-size:15px;font-weight:700;}
+.record-hint{font-size:10px;color:var(--ink3);margin-top:2px;}
+.adv-badge{font-size:10px;margin-left:5px;border-radius:4px;padding:1px 5px;font-weight:700;}
+.adv-badge.pending{background:#fef3cd;color:#e67e22;}
+.adv-badge.done{background:#eafaf1;color:#27ae60;}
+.empty{text-align:center;padding:48px 0;color:var(--ink3);font-size:14px;background:var(--card);}
+.empty-icon{font-size:36px;margin-bottom:8px;}
+
+/* FAB */
+.fab{position:fixed;bottom:76px;right:20px;width:50px;height:50px;border-radius:50%;background:var(--ink);color:#fff;font-size:24px;border:none;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center;z-index:200;transition:transform .13s;}
+.fab:active{transform:scale(.94);}
+
+/* OVERLAY / SHEET */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:300;align-items:flex-end;justify-content:center;}
+.overlay.open{display:flex;}
+.sheet{background:var(--card);border-radius:20px 20px 0 0;padding:24px 20px 44px;width:100%;max-width:640px;animation:up .2s ease;max-height:92vh;overflow-y:auto;}
+@keyframes up{from{transform:translateY(50px);opacity:0;}to{transform:translateY(0);opacity:1;}}
+.sheet-title{font-size:17px;font-weight:700;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;}
+.btn-x{background:none;border:none;font-size:20px;color:var(--ink3);cursor:pointer;}
+
+/* FORM */
+.frow{margin-bottom:15px;}
+label{font-size:12px;font-weight:600;color:var(--ink2);display:block;margin-bottom:6px;letter-spacing:.2px;}
+input[type=number],input[type=text],input[type=datetime-local],input[type=date],textarea{width:100%;padding:11px 13px;border:1.5px solid var(--border);border-radius:10px;font-size:15px;font-family:inherit;color:var(--ink);background:var(--bg);outline:none;transition:border-color .13s;-webkit-appearance:none;}
+input:focus,textarea:focus{border-color:var(--ink);background:#fff;}
+textarea{resize:none;height:68px;}
+input[type=datetime-local],input[type=date]{color-scheme:light;}
+.seg{display:grid;gap:7px;}
+.seg-2{grid-template-columns:1fr 1fr;}
+.seg-btn{padding:10px 6px;border-radius:9px;border:1.5px solid var(--border);background:var(--bg);font-size:13px;font-weight:600;color:var(--ink2);cursor:pointer;text-align:center;transition:all .12s;line-height:1.3;}
+.seg-btn.on-J{border-color:var(--J);background:#fdf0ec;color:var(--J);}
+.seg-btn.on-G{border-color:var(--G);background:#e8f0fb;color:var(--G);}
+.seg-btn.on-p{border-color:var(--pri);background:#f5eef8;color:var(--pri);}
+.seg-btn.on-b{border-color:var(--biz);background:#eafaf1;color:var(--biz);}
+.seg-btn.on-pay{border-color:var(--ink);background:#f0f0f0;color:var(--ink);}
+.sub-options{margin-top:9px;display:flex;flex-wrap:wrap;gap:7px;}
+.sub-btn{padding:7px 12px;border-radius:8px;border:1.5px solid var(--border);background:var(--bg);font-size:12px;font-weight:600;color:var(--ink2);cursor:pointer;transition:all .12s;}
+.sub-btn.on-cash{border-color:var(--cash);background:#fdf3e3;color:var(--cash);}
+.sub-btn.on-card{border-color:var(--cardp);background:#ebf5fb;color:var(--cardp);}
+.btn-save{width:100%;padding:13px;border:none;border-radius:11px;background:var(--ink);color:#fff;font-size:15px;font-weight:700;cursor:pointer;margin-top:6px;}
+
+/* ADVANCE TOGGLE */
+.adv-toggle-row{display:flex;align-items:center;justify-content:space-between;padding:11px 13px;border:1.5px solid var(--border);border-radius:10px;background:var(--bg);cursor:pointer;}
+.adv-toggle-row.on{border-color:var(--adv);background:#fef9ec;}
+.adv-toggle-lbl{font-size:14px;font-weight:600;color:var(--ink2);}
+.adv-toggle-row.on .adv-toggle-lbl{color:var(--adv);}
+.tog-sw{width:44px;height:26px;border-radius:13px;background:var(--border);position:relative;transition:background .2s;flex-shrink:0;}
+.tog-sw.on{background:var(--adv);}
+.tog-knob{position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.2);}
+.tog-sw.on .tog-knob{left:21px;}
+
+/* EDIT ACTIONS */
+.edit-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px;}
+.btn-del-red{padding:13px;border:1.5px solid #ffdddd;border-radius:11px;background:none;color:#e53;font-size:15px;font-weight:700;cursor:pointer;}
+
+/* SEARCH PAGE */
+.search-box{background:var(--card);border-radius:14px;padding:16px;border:1px solid var(--border);margin-bottom:12px;display:flex;flex-direction:column;gap:12px;}
+.date-range{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.chips{display:flex;flex-wrap:wrap;gap:6px;}
+.chip{padding:6px 12px;border-radius:20px;border:1.5px solid var(--border);background:var(--bg);font-size:12px;font-weight:600;color:var(--ink2);cursor:pointer;}
+.chip.on-J{border-color:var(--J);background:#fdf0ec;color:var(--J);}
+.chip.on-G{border-color:var(--G);background:#e8f0fb;color:var(--G);}
+.chip.on-p{border-color:var(--pri);background:#f5eef8;color:var(--pri);}
+.chip.on-b{border-color:var(--biz);background:#eafaf1;color:var(--biz);}
+.chip.on-pay{border-color:var(--cardp);background:#ebf5fb;color:var(--cardp);}
+.kw-wrap{position:relative;}
+.kw-wrap input{padding-right:36px;}
+.btn-clr-kw{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--ink3);cursor:pointer;font-size:16px;}
+.search-actions{display:flex;gap:8px;}
+.btn-search{flex:1;padding:11px;border:none;border-radius:10px;background:var(--ink);color:#fff;font-size:14px;font-weight:700;cursor:pointer;}
+.btn-reset{padding:11px 16px;border:1.5px solid var(--border);border-radius:10px;background:none;font-size:14px;font-weight:600;color:var(--ink2);cursor:pointer;}
+.result-box{background:var(--card);border-radius:12px;padding:14px 16px;border:1px solid var(--border);margin-bottom:12px;display:none;}
+.result-box.show{display:block;}
+.result-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+.result-count{font-size:12px;color:var(--ink3);}
+.result-total{font-size:22px;font-weight:800;}
+.result-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;}
+.rc{font-size:12px;padding:4px 10px;border-radius:20px;font-weight:600;}
+.rc-J{background:#fdf0ec;color:var(--J);} .rc-G{background:#e8f0fb;color:var(--G);}
+.rc-p{background:#f5eef8;color:var(--pri);} .rc-b{background:#eafaf1;color:var(--biz);}
+
+/* ADVANCE DETAIL SHEET */
+.adv-rec{background:var(--bg);border-radius:10px;padding:11px 13px;margin-bottom:8px;display:flex;align-items:center;gap:10px;border:1px solid var(--border);}
+.adv-rec-info{flex:1;min-width:0;}
+.adv-rec-note{font-size:14px;font-weight:600;}
+.adv-rec-meta{font-size:11px;color:var(--ink3);margin-top:2px;}
+.adv-rec-right{text-align:right;flex-shrink:0;}
+.adv-rec-amount{font-size:15px;font-weight:700;color:var(--adv);}
+.btn-recover{font-size:11px;font-weight:700;padding:5px 10px;border-radius:6px;border:1.5px solid var(--biz);color:var(--biz);background:none;cursor:pointer;margin-top:4px;}
+
+/* SETTINGS */
+.settings-sec{background:var(--card);border-radius:14px;padding:16px;border:1px solid var(--border);margin-bottom:16px;}
+.settings-ttl{font-size:13px;font-weight:700;color:var(--ink3);letter-spacing:.5px;text-transform:uppercase;margin-bottom:14px;}
+.settings-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);}
+.settings-row:last-child{border-bottom:none;padding-bottom:0;}
+.settings-row-lbl{font-size:14px;font-weight:600;}
+.settings-row-sub{font-size:11px;color:var(--ink3);margin-top:2px;}
+.budget-input{width:130px;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:15px;font-weight:700;text-align:right;font-family:inherit;color:var(--ink);background:var(--bg);outline:none;}
+.budget-input:focus{border-color:var(--ink);background:#fff;}
+.btn-save-set{width:100%;padding:13px;border:none;border-radius:11px;background:var(--ink);color:#fff;font-size:15px;font-weight:700;cursor:pointer;margin-top:4px;}
+
+/* TOAST */
+.toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(10px);background:var(--ink);color:#fff;font-size:13px;padding:8px 18px;border-radius:20px;opacity:0;transition:all .2s;pointer-events:none;z-index:500;white-space:nowrap;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <span class="j">J</span><span class="amp">&</span><span class="g">G</span>
+    <span class="sync-dot" id="sync-dot"></span>
+  </div>
+  <div class="month-nav" id="month-nav">
+    <button onclick="changeMonth(-1)">‹</button>
+    <div id="month-label"></div>
+    <button onclick="changeMonth(1)">›</button>
+  </div>
+</header>
+
+<!-- ══ 記帳頁 ══ -->
+<div class="page active" id="page-home">
+  <div class="container">
+    <div class="summary-row">
+      <div class="sum-card" id="card-J" onclick="filterWho('J')">
+        <div class="sum-card-header">
+          <div class="who-dot" style="background:var(--J)"></div>
+          <div class="sum-card-name" style="color:var(--J)">JOVEY</div>
+          <div class="filter-badge" id="fbadge-J">✓</div>
+        </div>
+        <div class="sum-row"><span class="sum-label">私人</span><span class="sum-val tag-p" id="j-p">$0</span></div>
+        <div class="sum-row"><span class="sum-label">事業</span><span class="sum-val tag-b" id="j-b">$0</span></div>
+        <div class="sum-total" id="j-total">$0</div>
+      </div>
+      <div class="sum-card" id="card-G" onclick="filterWho('G')">
+        <div class="sum-card-header">
+          <div class="who-dot" style="background:var(--G)"></div>
+          <div class="sum-card-name" style="color:var(--G)">GRACIE</div>
+          <div class="filter-badge" id="fbadge-G">✓</div>
+        </div>
+        <div class="sum-row"><span class="sum-label">私人</span><span class="sum-val tag-p" id="g-p">$0</span></div>
+        <div class="sum-row"><span class="sum-label">事業</span><span class="sum-val tag-b" id="g-b">$0</span></div>
+        <div class="sum-total" id="g-total">$0</div>
+      </div>
+    </div>
+
+    <div class="budget-section">
+      <div class="budget-row">
+        <div class="budget-top">
+          <span class="budget-lbl">🏠 私人支出</span>
+          <span class="budget-nums"><strong id="bp-spent">$0</strong> <span id="bp-of"></span></span>
+        </div>
+        <div class="bbar-bg"><div class="bbar-fill pri" id="bbar-p" style="width:0%"></div></div>
+        <div class="budget-remain" id="bp-rem"></div>
+      </div>
+      <div class="budget-row">
+        <div class="budget-top">
+          <span class="budget-lbl">💼 事業支出</span>
+          <span class="budget-nums"><strong id="bb-spent">$0</strong> <span id="bb-of"></span></span>
+        </div>
+        <div class="bbar-bg"><div class="bbar-fill biz" id="bbar-b" style="width:0%"></div></div>
+        <div class="budget-remain" id="bb-rem"></div>
+      </div>
+    </div>
+
+    <div class="adv-bar" id="adv-bar" onclick="openAdvSheet()">
+      <div class="adv-bar-left">
+        <span style="font-size:18px">💸</span>
+        <div>
+          <div class="adv-title">代付未回收</div>
+          <div class="adv-sub" id="adv-sub">點擊查看明細</div>
+        </div>
+      </div>
+      <div class="adv-total" id="adv-total">$0</div>
+    </div>
+
+    <div class="toolbar">
+      <button class="btn-export" onclick="exportCSV('month')">↓ 匯出本月 CSV</button>
+    </div>
+    <div class="list-header">本月明細</div>
+    <div class="filter-label" id="filter-label"></div>
+    <div class="record-list" id="record-list">
+      <div class="empty"><div class="empty-icon">📋</div>載入中…</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ 查詢頁 ══ -->
+<div class="page" id="page-search">
+  <div class="container">
+    <div class="search-box">
+      <div class="frow">
+        <label>日期範圍</label>
+        <div class="date-range">
+          <input type="date" id="s-from">
+          <input type="date" id="s-to">
+        </div>
+      </div>
+      <div class="frow">
+        <label>誰</label>
+        <div class="chips">
+          <div class="chip" id="sc-J" onclick="toggleChip('who','J')">👨 Jovey</div>
+          <div class="chip" id="sc-G" onclick="toggleChip('who','G')">👩 Gracie</div>
+        </div>
+      </div>
+      <div class="frow">
+        <label>性質</label>
+        <div class="chips">
+          <div class="chip" id="sc-p" onclick="toggleChip('type','p')">🏠 私人</div>
+          <div class="chip" id="sc-b" onclick="toggleChip('type','b')">💼 事業</div>
+        </div>
+      </div>
+      <div class="frow">
+        <label>付款方式</label>
+        <div class="chips">
+          <div class="chip" id="sc-現金"     onclick="togglePay('現金')"    >現金</div>
+          <div class="chip" id="sc-Debit卡"  onclick="togglePay('Debit卡')" >Debit 卡</div>
+          <div class="chip" id="sc-中信（正）" onclick="togglePay('中信（正）')">中信（正）</div>
+          <div class="chip" id="sc-中信（副）" onclick="togglePay('中信（副）')">中信（副）</div>
+          <div class="chip" id="sc-星展（正）" onclick="togglePay('星展（正）')">星展（正）</div>
+          <div class="chip" id="sc-星展（副）" onclick="togglePay('星展（副）')">星展（副）</div>
+          <div class="chip" id="sc-Line Pay"  onclick="togglePay('Line Pay')">Line Pay</div>
+          <div class="chip" id="sc-台新"      onclick="togglePay('台新')"   >G's 台新</div>
+          <div class="chip" id="sc-華南"      onclick="togglePay('華南')"   >J's 華南</div>
+        </div>
+      </div>
+      <div class="frow">
+        <label>關鍵字（備註）</label>
+        <div class="kw-wrap">
+          <input type="text" id="s-kw" placeholder="搜尋備註…">
+          <button class="btn-clr-kw" onclick="document.getElementById('s-kw').value=''">×</button>
+        </div>
+      </div>
+      <div class="search-actions">
+        <button class="btn-reset" onclick="resetSearch()">清除</button>
+        <button class="btn-search" onclick="doSearch()">搜尋</button>
+      </div>
+    </div>
+    <div class="result-box" id="result-box">
+      <div class="result-top">
+        <div class="result-count" id="result-count"></div>
+        <button class="btn-export" onclick="exportCSV('search')" style="font-size:12px;padding:5px 12px">↓ 匯出結果</button>
+      </div>
+      <div class="result-total" id="result-total"></div>
+      <div class="result-chips" id="result-chips"></div>
+    </div>
+    <div class="record-list" id="search-list" style="display:none"></div>
+  </div>
+</div>
+
+<!-- ══ 設定頁 ══ -->
+<div class="page" id="page-settings">
+  <div class="container">
+    <div class="settings-sec">
+      <div class="settings-ttl">月預算設定（J + G 合計）</div>
+      <div class="settings-row">
+        <div>
+          <div class="settings-row-lbl">🏠 私人月預算</div>
+          <div class="settings-row-sub">J + G 合計私人支出上限</div>
+        </div>
+        <input type="number" class="budget-input" id="set-p" placeholder="0" inputmode="numeric">
+      </div>
+      <div class="settings-row">
+        <div>
+          <div class="settings-row-lbl">💼 事業月預算</div>
+          <div class="settings-row-sub">J + G 合計事業支出上限</div>
+        </div>
+        <input type="number" class="budget-input" id="set-b" placeholder="0" inputmode="numeric">
+      </div>
+    </div>
+    <button class="btn-save-set" onclick="saveBudget()">儲存預算</button>
+  </div>
+</div>
+
+<!-- FAB -->
+<button class="fab" id="fab" onclick="openAddSheet()">＋</button>
+
+<!-- 底部導覽 -->
+<div class="bottom-nav">
+  <button class="nav-btn active" id="nav-home" onclick="goPage('home')"><span class="nav-icon">📒</span>記帳</button>
+  <button class="nav-btn" id="nav-search" onclick="goPage('search')"><span class="nav-icon">🔍</span>查詢</button>
+  <button class="nav-btn" id="nav-settings" onclick="goPage('settings')"><span class="nav-icon">⚙️</span>設定</button>
+</div>
+
+<!-- 新增 Sheet -->
+<div class="overlay" id="add-overlay" onclick="if(event.target.id==='add-overlay')closeAddSheet()">
+  <div class="sheet">
+    <div class="sheet-title">記一筆 <button class="btn-x" onclick="closeAddSheet()">×</button></div>
+    <div class="frow"><label>日期 ／ 時間</label><input type="datetime-local" id="f-dt"></div>
+    <div class="frow"><label>金額</label><input type="number" id="f-amount" placeholder="0" inputmode="decimal"></div>
+    <div class="frow"><label>誰</label>
+      <div class="seg seg-2">
+        <div class="seg-btn" id="fbtn-J" onclick="fPick('who','J')">👨 Jovey</div>
+        <div class="seg-btn" id="fbtn-G" onclick="fPick('who','G')">👩 Gracie</div>
+      </div>
+    </div>
+    <div class="frow"><label>性質</label>
+      <div class="seg seg-2">
+        <div class="seg-btn" id="fbtn-p" onclick="fPick('type','p')">🏠 私人</div>
+        <div class="seg-btn" id="fbtn-b" onclick="fPick('type','b')">💼 事業</div>
+      </div>
+    </div>
+    <div class="frow"><label>付款方式</label>
+      <div class="seg seg-2">
+        <div class="seg-btn" id="fbtn-cash" onclick="fPick('pay','cash')">💵 現金</div>
+        <div class="seg-btn" id="fbtn-card" onclick="fPick('pay','card')">💳 刷卡</div>
+      </div>
+      <div class="sub-options" id="f-cash-opts" style="display:none">
+        <div class="sub-btn" id="fsub-現金"    onclick="fPickSub('現金')"   >現金</div>
+        <div class="sub-btn" id="fsub-Debit卡" onclick="fPickSub('Debit卡')">Debit 卡</div>
+      </div>
+      <div class="sub-options" id="f-card-opts" style="display:none">
+        <div class="sub-btn" id="fsub-中信（正）" onclick="fPickSub('中信（正）')">中信（正）</div>
+        <div class="sub-btn" id="fsub-中信（副）" onclick="fPickSub('中信（副）')">中信（副）</div>
+        <div class="sub-btn" id="fsub-星展（正）" onclick="fPickSub('星展（正）')">星展（正）</div>
+        <div class="sub-btn" id="fsub-星展（副）" onclick="fPickSub('星展（副）')">星展（副）</div>
+        <div class="sub-btn" id="fsub-Line Pay"   onclick="fPickSub('Line Pay')">Line Pay</div>
+        <div class="sub-btn" id="fsub-台新"       onclick="fPickSub('台新')">G's 台新</div>
+        <div class="sub-btn" id="fsub-華南"       onclick="fPickSub('華南')">J's 華南</div>
+      </div>
+    </div>
+    <div class="frow"><label>備註</label><textarea id="f-note" placeholder="路易莎咖啡、停車費…"></textarea></div>
+    <div class="frow"><label>代付設定</label>
+      <div class="adv-toggle-row" id="f-adv-toggle" onclick="fToggleAdv()">
+        <span class="adv-toggle-lbl">💸 這筆是代付（等待回收）</span>
+        <div class="tog-sw" id="f-tog"><div class="tog-knob"></div></div>
+      </div>
+    </div>
+    <button class="btn-save" onclick="saveAdd()">記下來</button>
+  </div>
+</div>
+
+<!-- 編輯 Sheet -->
+<div class="overlay" id="edit-overlay" onclick="if(event.target.id==='edit-overlay')closeEditSheet()">
+  <div class="sheet">
+    <div class="sheet-title">編輯記帳 <button class="btn-x" onclick="closeEditSheet()">×</button></div>
+    <div class="frow"><label>日期 ／ 時間</label><input type="datetime-local" id="e-dt"></div>
+    <div class="frow"><label>金額</label><input type="number" id="e-amount" placeholder="0" inputmode="decimal"></div>
+    <div class="frow"><label>誰</label>
+      <div class="seg seg-2">
+        <div class="seg-btn" id="ebtn-J" onclick="ePick('who','J')">👨 Jovey</div>
+        <div class="seg-btn" id="ebtn-G" onclick="ePick('who','G')">👩 Gracie</div>
+      </div>
+    </div>
+    <div class="frow"><label>性質</label>
+      <div class="seg seg-2">
+        <div class="seg-btn" id="ebtn-p" onclick="ePick('type','p')">🏠 私人</div>
+        <div class="seg-btn" id="ebtn-b" onclick="ePick('type','b')">💼 事業</div>
+      </div>
+    </div>
+    <div class="frow"><label>付款方式</label>
+      <div class="seg seg-2">
+        <div class="seg-btn" id="ebtn-cash" onclick="ePick('pay','cash')">💵 現金</div>
+        <div class="seg-btn" id="ebtn-card" onclick="ePick('pay','card')">💳 刷卡</div>
+      </div>
+      <div class="sub-options" id="e-cash-opts" style="display:none">
+        <div class="sub-btn" id="esub-現金"    onclick="ePickSub('現金')"   >現金</div>
+        <div class="sub-btn" id="esub-Debit卡" onclick="ePickSub('Debit卡')">Debit 卡</div>
+      </div>
+      <div class="sub-options" id="e-card-opts" style="display:none">
+        <div class="sub-btn" id="esub-中信（正）" onclick="ePickSub('中信（正）')">中信（正）</div>
+        <div class="sub-btn" id="esub-中信（副）" onclick="ePickSub('中信（副）')">中信（副）</div>
+        <div class="sub-btn" id="esub-星展（正）" onclick="ePickSub('星展（正）')">星展（正）</div>
+        <div class="sub-btn" id="esub-星展（副）" onclick="ePickSub('星展（副）')">星展（副）</div>
+        <div class="sub-btn" id="esub-Line Pay"   onclick="ePickSub('Line Pay')">Line Pay</div>
+        <div class="sub-btn" id="esub-台新"       onclick="ePickSub('台新')">G's 台新</div>
+        <div class="sub-btn" id="esub-華南"       onclick="ePickSub('華南')">J's 華南</div>
+      </div>
+    </div>
+    <div class="frow"><label>備註</label><textarea id="e-note" placeholder="路易莎咖啡、停車費…"></textarea></div>
+    <div class="frow"><label>代付設定</label>
+      <div class="adv-toggle-row" id="e-adv-toggle" onclick="eToggleAdv()">
+        <span class="adv-toggle-lbl">💸 這筆是代付（等待回收）</span>
+        <div class="tog-sw" id="e-tog"><div class="tog-knob"></div></div>
+      </div>
+    </div>
+    <div class="edit-actions">
+      <button class="btn-del-red" onclick="doDelete()">刪除</button>
+      <button class="btn-save" onclick="saveEdit()">儲存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 代付明細 Sheet -->
+<div class="overlay" id="adv-overlay" onclick="if(event.target.id==='adv-overlay')closeAdvSheet()">
+  <div class="sheet">
+    <div class="sheet-title">💸 代付未回收 <button class="btn-x" onclick="closeAdvSheet()">×</button></div>
+    <div id="adv-list"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+
+<script>
+// Global shims - these queue calls until Firebase module is ready
+const _q = [];
+const _makeStub = name => (...args) => {
+  if (window._fb && window._fb[name]) return window._fb[name](...args);
+  _q.push([name, args]);
+};
+// All functions used in onclick/HTML
+['goPage','changeMonth','filterWho','openAddSheet','closeAddSheet',
+ 'fPick','fPickSub','fToggleAdv','saveAdd',
+ 'openEditSheet','closeEditSheet','ePick','ePickSub','eToggleAdv','saveEdit','doDelete','doDelId',
+ 'openAdvSheet','closeAdvSheet','recoverAdv',
+ 'saveBudget','toggleChip','togglePay','doSearch','resetSearch','exportCSV','toast'
+].forEach(n => window[n] = _makeStub(n));
+
+window._fbReady = fns => {
+  window._fb = fns;
+  Object.assign(window, fns);
+  _q.forEach(([n,a]) => fns[n] && fns[n](...a));
+  _q.length = 0;
+};
+</script>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, collection, addDoc, deleteDoc, updateDoc, doc, onSnapshot, query, orderBy }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyA3uxIRNuh0A5Uk9CPwoA_Tp_rOECGgIg",
+  authDomain: "jg-exp.firebaseapp.com",
+  projectId: "jg-exp",
+  storageBucket: "jg-exp.firebasestorage.app",
+  messagingSenderId: "1009194049206",
+  appId: "1:1009194049206:web:067e0bf1ec44d022345017"
+};
+
+const app = initializeApp(firebaseConfig);
+const db  = getFirestore(app);
+const col = collection(db, 'records');
+
+// ── STATE ──
+let records = [];
+let curYear, curMonth;
+let whoFilter = '';
+let lastSearch = [];
+let budgetP = parseInt(localStorage.getItem('bdg_p') || '0');
+let budgetB = parseInt(localStorage.getItem('bdg_b') || '0');
+let fSel = { who:'', type:'', pay:'', sub:'', adv:false };
+let eSel = { who:'', type:'', pay:'', sub:'', adv:false };
+let editId = null;
+let sSel  = { who: new Set(), type: new Set(), pay: new Set() };
+
+const now = new Date();
+curYear = now.getFullYear(); curMonth = now.getMonth();
+
+// ── SYNC ──
+const dot = document.getElementById('sync-dot');
+const setSyncDot = s => dot.className = 'sync-dot ' + s;
+setSyncDot('syncing');
+onSnapshot(query(col, orderBy('createdAt','desc')), snap => {
+  records = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  setSyncDot('ok');
+  render();
+}, () => { setSyncDot('err'); toast('同步失敗'); });
+
+// ── UTILS ──
+const fmt = n => '$' + Math.round(n).toLocaleString('zh-TW');
+const monthKey = () => `${curYear}-${String(curMonth+1).padStart(2,'0')}`;
+function nowLocalDt() {
+  const n = new Date(); n.setMinutes(n.getMinutes()-n.getTimezoneOffset());
+  return n.toISOString().slice(0,16);
+}
+function formatDt(dt) {
+  const d = new Date(dt); if(isNaN(d)) return dt;
+  return `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+}
+
+// ── PAGE NAV ──
+window.goPage = p => {
+  document.querySelectorAll('.page').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
+  document.getElementById('page-'+p).classList.add('active');
+  document.getElementById('nav-'+p).classList.add('active');
+  document.getElementById('month-nav').style.display = p==='home' ? 'flex' : 'none';
+  document.getElementById('fab').style.display = p==='home' ? 'flex' : 'none';
+  if (p==='settings') {
+    document.getElementById('set-p').value = budgetP || '';
+    document.getElementById('set-b').value = budgetB || '';
+  }
+};
+
+window.changeMonth = d => {
+  curMonth += d;
+  if (curMonth<0){curMonth=11;curYear--;} if (curMonth>11){curMonth=0;curYear++;}
+  render();
+};
+
+// ── RENDER ──
+function render() {
+  const mn = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+  document.getElementById('month-label').textContent = `${curYear} ${mn[curMonth]}`;
+  const mk = monthKey();
+  const all = records.filter(r => r.month === mk);
+
+  // summary cards (always full data)
+  let jp=0,jb=0,gp=0,gb=0;
+  all.forEach(r => {
+    if(r.who==='J'&&r.type==='p') jp+=r.amount;
+    if(r.who==='J'&&r.type==='b') jb+=r.amount;
+    if(r.who==='G'&&r.type==='p') gp+=r.amount;
+    if(r.who==='G'&&r.type==='b') gb+=r.amount;
+  });
+  document.getElementById('j-p').textContent=fmt(jp);
+  document.getElementById('j-b').textContent=fmt(jb);
+  document.getElementById('j-total').textContent=fmt(jp+jb);
+  document.getElementById('g-p').textContent=fmt(gp);
+  document.getElementById('g-b').textContent=fmt(gb);
+  document.getElementById('g-total').textContent=fmt(gp+gb);
+
+  // budget bars
+  const totalP = jp+gp, totalB = jb+gb;
+  document.getElementById('bp-spent').textContent = fmt(totalP);
+  document.getElementById('bb-spent').textContent = fmt(totalB);
+  renderBudgetBar('p', totalP, budgetP);
+  renderBudgetBar('b', totalB, budgetB);
+
+  // advance bar
+  const advRecs = all.filter(r => r.advance && !r.recovered);
+  const advTotal = advRecs.reduce((s,r)=>s+r.amount,0);
+  const advBar = document.getElementById('adv-bar');
+  if (advTotal > 0) {
+    advBar.classList.add('show');
+    document.getElementById('adv-total').textContent = fmt(advTotal);
+    document.getElementById('adv-sub').textContent = `${advRecs.length} 筆・點擊查看明細`;
+  } else {
+    advBar.classList.remove('show');
+  }
+
+  // list (filtered)
+  const cur = whoFilter ? all.filter(r=>r.who===whoFilter) : all;
+  renderList(cur, 'record-list', true);
+
+  // filter label
+  const fl = document.getElementById('filter-label');
+  if (whoFilter) {
+    fl.textContent = `顯示 ${whoFilter==='J'?'Jovey':'Gracie'} 的記帳　點卡片取消篩選`;
+    fl.classList.add('show');
+  } else {
+    fl.classList.remove('show');
+  }
+}
+
+function renderBudgetBar(key, spent, budget) {
+  const barEl  = document.getElementById('bbar-'+key);
+  const ofEl   = document.getElementById(key==='p'?'bp-of':'bb-of');
+  const remEl  = document.getElementById(key==='p'?'bp-rem':'bb-rem');
+  if (budget > 0) {
+    ofEl.textContent = '/ ' + fmt(budget);
+    const pct = Math.min(spent/budget*100, 100);
+    barEl.style.width = pct + '%';
+    barEl.className = 'bbar-fill '+(key==='p'?'pri':'biz')+(spent>budget?' over':'');
+    const diff = budget - spent;
+    if (diff >= 0) {
+      remEl.textContent = `還剩 ${fmt(diff)}`;
+      remEl.className = 'budget-remain'+(pct>80?' warn':'');
+    } else {
+      remEl.textContent = `超出 ${fmt(-diff)}`;
+      remEl.className = 'budget-remain over';
+    }
+  } else {
+    ofEl.textContent = '（未設定預算）';
+    barEl.style.width = '0%';
+    remEl.textContent = '';
+    remEl.className = 'budget-remain';
+  }
+}
+
+function renderList(list, elId, showDel) {
+  const el = document.getElementById(elId);
+  if (!list.length) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">📋</div>沒有記錄</div>';
+    return;
+  }
+  const sorted = [...list].sort((a,b) => ((b.dt||String(b.createdAt||0)) > (a.dt||String(a.createdAt||0))) ? 1 : -1);
+  el.innerHTML = sorted.map(r => {
+    const payLabel = r.sub || (r.pay==='cash'?'現金':'刷卡');
+    const typeLabel = r.type==='p'?'私人':'事業';
+    const dtLabel = r.dt ? formatDt(r.dt) : '';
+    const advBadge = r.advance && !r.recovered
+      ? '<span class="adv-badge pending">代付</span>'
+      : r.advance && r.recovered
+      ? '<span class="adv-badge done">已回收</span>' : '';
+    if (showDel) {
+      return `<div class="record-wrap" id="wrap-${r.id}">
+        <button class="swipe-del-btn" onclick="doDelId('${r.id}')"><span class="di">🗑</span>刪除</button>
+        <div class="record" data-id="${r.id}">
+          <div class="record-badges">
+            <span class="badge badge-${r.who}">${r.who}</span>
+            <span class="badge badge-${r.type}">${typeLabel}</span>
+          </div>
+          <div class="record-mid">
+            <div class="record-note">${r.note||'—'}${advBadge}</div>
+            <div class="record-meta">${[dtLabel,payLabel].filter(Boolean).join('・')}</div>
+          </div>
+          <div class="record-right">
+            <div class="record-amount">${fmt(r.amount)}</div>
+            <div class="record-hint">長按編輯・左滑刪除</div>
+          </div>
+        </div>
+      </div>`;
+    } else {
+      return `<div class="record">
+        <div class="record-badges">
+          <span class="badge badge-${r.who}">${r.who}</span>
+          <span class="badge badge-${r.type}">${typeLabel}</span>
+        </div>
+        <div class="record-mid">
+          <div class="record-note">${r.note||'—'}${advBadge}</div>
+          <div class="record-meta">${[dtLabel,payLabel].filter(Boolean).join('・')}</div>
+        </div>
+        <div class="record-right">
+          <div class="record-amount">${fmt(r.amount)}</div>
+        </div>
+      </div>`;
+    }
+  }).join('');
+}
+
+// ── WHO FILTER ──
+window.filterWho = who => {
+  if (whoFilter === who) {
+    whoFilter = '';
+    document.getElementById('card-J').className = 'sum-card';
+    document.getElementById('card-G').className = 'sum-card';
+    document.getElementById('fbadge-J').style.display = 'none';
+    document.getElementById('fbadge-G').style.display = 'none';
+  } else {
+    whoFilter = who;
+    document.getElementById('card-J').className = 'sum-card' + (who==='J'?' active-J':'');
+    document.getElementById('card-G').className = 'sum-card' + (who==='G'?' active-G':'');
+    document.getElementById('fbadge-J').style.display = who==='J' ? 'block' : 'none';
+    document.getElementById('fbadge-G').style.display = who==='G' ? 'block' : 'none';
+  }
+  render();
+};
+
+// ── ADD SHEET ──
+window.openAddSheet = () => {
+  fSel = {who:'',type:'',pay:'',sub:'',adv:false};
+  document.getElementById('f-dt').value = nowLocalDt();
+  document.getElementById('f-amount').value = '';
+  document.getElementById('f-note').value = '';
+  document.getElementById('f-cash-opts').style.display = 'none';
+  document.getElementById('f-card-opts').style.display = 'none';
+  ['J','G','p','b','cash','card'].forEach(k => { const b=document.getElementById('fbtn-'+k); if(b) b.className='seg-btn'; });
+  document.querySelectorAll('[id^="fsub-"]').forEach(b=>b.className='sub-btn');
+  document.getElementById('f-adv-toggle').className = 'adv-toggle-row';
+  document.getElementById('f-tog').className = 'tog-sw';
+  document.getElementById('add-overlay').classList.add('open');
+  setTimeout(()=>document.getElementById('f-amount').focus(),80);
+};
+window.closeAddSheet = () => document.getElementById('add-overlay').classList.remove('open');
+
+window.fPick = (grp, val) => {
+  fSel[grp] = val;
+  if(grp==='who'){document.getElementById('fbtn-J').className='seg-btn'+(val==='J'?' on-J':'');document.getElementById('fbtn-G').className='seg-btn'+(val==='G'?' on-G':'');}
+  if(grp==='type'){document.getElementById('fbtn-p').className='seg-btn'+(val==='p'?' on-p':'');document.getElementById('fbtn-b').className='seg-btn'+(val==='b'?' on-b':'');}
+  if(grp==='pay'){
+    document.getElementById('fbtn-cash').className='seg-btn'+(val==='cash'?' on-pay':'');
+    document.getElementById('fbtn-card').className='seg-btn'+(val==='card'?' on-pay':'');
+    document.getElementById('f-cash-opts').style.display=val==='cash'?'flex':'none';
+    document.getElementById('f-card-opts').style.display=val==='card'?'flex':'none';
+    document.querySelectorAll('[id^="fsub-"]').forEach(b=>b.className='sub-btn');
+    fSel.sub='';
+  }
+};
+window.fPickSub = val => {
+  fSel.sub=val;
+  const isCash=fSel.pay==='cash';
+  document.querySelectorAll('[id^="fsub-"]').forEach(b=>b.className='sub-btn');
+  const b=document.getElementById('fsub-'+val); if(b) b.className='sub-btn '+(isCash?'on-cash':'on-card');
+};
+window.fToggleAdv = () => {
+  fSel.adv=!fSel.adv;
+  document.getElementById('f-adv-toggle').className='adv-toggle-row'+(fSel.adv?' on':'');
+  document.getElementById('f-tog').className='tog-sw'+(fSel.adv?' on':'');
+};
+window.saveAdd = async () => {
+  const amount=parseFloat(document.getElementById('f-amount').value);
+  if(!amount||amount<=0){toast('請輸入金額');return;}
+  if(!fSel.who){toast('請選擇 Jovey 或 Gracie');return;}
+  if(!fSel.type){toast('請選擇私人或事業');return;}
+  if(!fSel.pay){toast('請選擇現金或刷卡');return;}
+  if(!fSel.sub){toast('請選擇付款細項');return;}
+  const dt=document.getElementById('f-dt').value;
+  const note=document.getElementById('f-note').value.trim();
+  const month=dt?dt.slice(0,7):monthKey();
+  setSyncDot('syncing');
+  try {
+    await addDoc(col,{month,dt,amount,who:fSel.who,type:fSel.type,pay:fSel.pay,sub:fSel.sub,note,advance:fSel.adv,recovered:false,createdAt:Date.now()});
+    window.closeAddSheet(); toast(fSel.adv?'已記錄（代付）✓':'已記錄 ✓');
+  } catch(e){setSyncDot('err');toast('儲存失敗');}
+};
+
+// ── EDIT SHEET ──
+window.openEditSheet = id => {
+  const r=records.find(r=>r.id===id); if(!r) return;
+  editId=id;
+  eSel={who:r.who,type:r.type,pay:r.pay,sub:r.sub||'',adv:!!r.advance};
+  document.getElementById('e-dt').value=r.dt||'';
+  document.getElementById('e-amount').value=r.amount;
+  document.getElementById('e-note').value=r.note||'';
+  // reset
+  ['J','G','p','b','cash','card'].forEach(k=>{const b=document.getElementById('ebtn-'+k);if(b)b.className='seg-btn';});
+  document.querySelectorAll('[id^="esub-"]').forEach(b=>b.className='sub-btn');
+  // set
+  const wb=document.getElementById('ebtn-'+r.who); if(wb) wb.className='seg-btn on-'+r.who;
+  const tb=document.getElementById('ebtn-'+r.type); if(tb) tb.className='seg-btn on-'+r.type;
+  const pb=document.getElementById('ebtn-'+r.pay); if(pb) pb.className='seg-btn on-pay';
+  document.getElementById('e-cash-opts').style.display=r.pay==='cash'?'flex':'none';
+  document.getElementById('e-card-opts').style.display=r.pay==='card'?'flex':'none';
+  if(r.sub){const sb=document.getElementById('esub-'+r.sub);if(sb) sb.className='sub-btn '+(r.pay==='cash'?'on-cash':'on-card');}
+  document.getElementById('e-adv-toggle').className='adv-toggle-row'+(eSel.adv?' on':'');
+  document.getElementById('e-tog').className='tog-sw'+(eSel.adv?' on':'');
+  document.getElementById('edit-overlay').classList.add('open');
+};
+window.closeEditSheet = () => document.getElementById('edit-overlay').classList.remove('open');
+
+window.ePick = (grp,val) => {
+  eSel[grp]=val;
+  if(grp==='who'){document.getElementById('ebtn-J').className='seg-btn'+(val==='J'?' on-J':'');document.getElementById('ebtn-G').className='seg-btn'+(val==='G'?' on-G':'');}
+  if(grp==='type'){document.getElementById('ebtn-p').className='seg-btn'+(val==='p'?' on-p':'');document.getElementById('ebtn-b').className='seg-btn'+(val==='b'?' on-b':'');}
+  if(grp==='pay'){
+    document.getElementById('ebtn-cash').className='seg-btn'+(val==='cash'?' on-pay':'');
+    document.getElementById('ebtn-card').className='seg-btn'+(val==='card'?' on-pay':'');
+    document.getElementById('e-cash-opts').style.display=val==='cash'?'flex':'none';
+    document.getElementById('e-card-opts').style.display=val==='card'?'flex':'none';
+    document.querySelectorAll('[id^="esub-"]').forEach(b=>b.className='sub-btn');
+    eSel.sub='';
+  }
+};
+window.ePickSub = val => {
+  eSel.sub=val;
+  const isCash=eSel.pay==='cash';
+  document.querySelectorAll('[id^="esub-"]').forEach(b=>b.className='sub-btn');
+  const b=document.getElementById('esub-'+val); if(b) b.className='sub-btn '+(isCash?'on-cash':'on-card');
+};
+window.eToggleAdv = () => {
+  eSel.adv=!eSel.adv;
+  document.getElementById('e-adv-toggle').className='adv-toggle-row'+(eSel.adv?' on':'');
+  document.getElementById('e-tog').className='tog-sw'+(eSel.adv?' on':'');
+};
+window.saveEdit = async () => {
+  const amount=parseFloat(document.getElementById('e-amount').value);
+  if(!amount||amount<=0){toast('請輸入金額');return;}
+  if(!eSel.who){toast('請選擇人');return;}
+  if(!eSel.type){toast('請選擇性質');return;}
+  if(!eSel.pay){toast('請選擇付款');return;}
+  if(!eSel.sub){toast('請選擇細項');return;}
+  const dt=document.getElementById('e-dt').value;
+  const note=document.getElementById('e-note').value.trim();
+  const month=dt?dt.slice(0,7):monthKey();
+  setSyncDot('syncing');
+  try {
+    await updateDoc(doc(db,'records',editId),{month,dt,amount,who:eSel.who,type:eSel.type,pay:eSel.pay,sub:eSel.sub,note,advance:eSel.adv});
+    window.closeEditSheet(); toast('已更新 ✓');
+  } catch(e){setSyncDot('err');toast('更新失敗');}
+};
+window.doDelete = async () => {
+  if(!confirm('刪除這筆？')) return;
+  setSyncDot('syncing');
+  try { await deleteDoc(doc(db,'records',editId)); window.closeEditSheet(); toast('已刪除'); }
+  catch(e){setSyncDot('err');toast('刪除失敗');}
+};
+window.doDelId = async id => {
+  if(!confirm('刪除這筆？')) return;
+  setSyncDot('syncing');
+  try { await deleteDoc(doc(db,'records',id)); toast('已刪除'); }
+  catch(e){setSyncDot('err');toast('刪除失敗');}
+};
+
+// ── SWIPE + LONG PRESS ──
+let sx=0,sy=0,swEl=null,swActive=false,lpTimer=null,lpFired=false;
+function closeAllSwiped(except){
+  document.querySelectorAll('.record.swiped').forEach(r=>{if(r!==except){r.classList.remove('swiped');r.style.transform='';}});
+}
+document.addEventListener('touchstart',e=>{
+  const rec=e.target.closest('.record[data-id]');
+  if(!rec){closeAllSwiped(null);return;}
+  sx=e.touches[0].clientX; sy=e.touches[0].clientY;
+  swEl=rec; swActive=false; lpFired=false;
+  lpTimer=setTimeout(()=>{
+    if(!swActive){lpFired=true;if(navigator.vibrate)navigator.vibrate(30);closeAllSwiped(null);window.openEditSheet(rec.dataset.id);}
+  },500);
+},{passive:true});
+document.addEventListener('touchmove',e=>{
+  if(!swEl) return;
+  const dx=e.touches[0].clientX-sx,dy=e.touches[0].clientY-sy;
+  if(Math.abs(dx)>6||Math.abs(dy)>6){clearTimeout(lpTimer);lpTimer=null;}
+  if(!swActive&&Math.abs(dy)>Math.abs(dx)){swEl=null;return;}
+  swActive=true;
+  if(dx<0){swEl.style.transform=`translateX(${Math.max(dx,-80)}px)`;swEl.style.transition='none';}
+  else if(dx>0&&swEl.classList.contains('swiped')){swEl.style.transform=`translateX(${Math.min(dx-80,0)}px)`;swEl.style.transition='none';}
+},{passive:true});
+document.addEventListener('touchend',e=>{
+  clearTimeout(lpTimer);
+  if(!swEl) return;
+  if(!swActive&&!lpFired){if(swEl.classList.contains('swiped')){swEl.classList.remove('swiped');swEl.style.transform='';} swEl=null;return;}
+  if(swActive){
+    const dx=e.changedTouches[0].clientX-sx;
+    swEl.style.transition='';
+    if(dx<-40){swEl.classList.add('swiped');closeAllSwiped(swEl);}
+    else{swEl.classList.remove('swiped');swEl.style.transform='';}
+  }
+  swEl=null;swActive=false;lpFired=false;
+});
+
+// ── ADVANCE DETAIL ──
+window.openAdvSheet = () => {
+  const mk=monthKey();
+  const advRecs=records.filter(r=>r.month===mk&&r.advance&&!r.recovered);
+  const el=document.getElementById('adv-list');
+  el.innerHTML = advRecs.length ? advRecs.sort((a,b)=>(b.dt||'')>(a.dt||'')?1:-1).map(r=>`
+    <div class="adv-rec">
+      <div class="adv-rec-info">
+        <div class="adv-rec-note">${r.note||'—'}</div>
+        <div class="adv-rec-meta">${r.who==='J'?'Jovey':'Gracie'}・${r.dt?formatDt(r.dt):r.month}・${r.sub||''}</div>
+      </div>
+      <div class="adv-rec-right">
+        <div class="adv-rec-amount">${fmt(r.amount)}</div>
+        <button class="btn-recover" onclick="recoverAdv('${r.id}')">✓ 已回收</button>
+      </div>
+    </div>`).join('')
+    : '<div class="empty"><div class="empty-icon">✅</div>目前沒有代付未回收</div>';
+  document.getElementById('adv-overlay').classList.add('open');
+};
+window.closeAdvSheet = () => document.getElementById('adv-overlay').classList.remove('open');
+window.recoverAdv = async id => {
+  setSyncDot('syncing');
+  try { await updateDoc(doc(db,'records',id),{recovered:true}); toast('已回收 ✓'); window.openAdvSheet(); }
+  catch(e){setSyncDot('err');toast('操作失敗');}
+};
+
+// ── BUDGET SETTINGS ──
+window.saveBudget = () => {
+  budgetP=parseInt(document.getElementById('set-p').value)||0;
+  budgetB=parseInt(document.getElementById('set-b').value)||0;
+  localStorage.setItem('bdg_p',budgetP); localStorage.setItem('bdg_b',budgetB);
+  toast('預算已儲存 ✓');
+  render();
+  // 自動跳回首頁讓你馬上看到結果
+  setTimeout(() => goPage('home'), 800);
+};
+
+// ── SEARCH ──
+window.toggleChip = (grp,val) => {
+  const set=sSel[grp], el=document.getElementById('sc-'+val);
+  if(set.has(val)){set.delete(val);el.className='chip';}
+  else{set.add(val);el.className='chip on-'+val;}
+};
+window.togglePay = val => {
+  const set=sSel.pay, el=document.getElementById('sc-'+val);
+  if(set.has(val)){set.delete(val);el.className='chip';}
+  else{set.add(val);el.className='chip on-pay';}
+};
+window.doSearch = () => {
+  const from=document.getElementById('s-from').value;
+  const to=document.getElementById('s-to').value;
+  const kw=document.getElementById('s-kw').value.trim().toLowerCase();
+  let res=[...records];
+  if(from) res=res.filter(r=>(r.dt||r.month)>=from);
+  if(to)   res=res.filter(r=>(r.dt||r.month)<=(to+'T23:59'));
+  if(sSel.who.size)  res=res.filter(r=>sSel.who.has(r.who));
+  if(sSel.type.size) res=res.filter(r=>sSel.type.has(r.type));
+  if(sSel.pay.size)  res=res.filter(r=>sSel.pay.has(r.sub));
+  if(kw) res=res.filter(r=>(r.note||'').toLowerCase().includes(kw));
+  lastSearch=res;
+  const rb=document.getElementById('result-box'), sl=document.getElementById('search-list');
+  rb.classList.add('show'); sl.style.display='flex';
+  const total=res.reduce((s,r)=>s+r.amount,0);
+  document.getElementById('result-count').textContent=`共 ${res.length} 筆`;
+  document.getElementById('result-total').textContent=fmt(total);
+  let jA=0,gA=0,pA=0,bA=0;
+  res.forEach(r=>{if(r.who==='J')jA+=r.amount;else gA+=r.amount;if(r.type==='p')pA+=r.amount;else bA+=r.amount;});
+  document.getElementById('result-chips').innerHTML=[
+    jA?`<span class="rc rc-J">J ${fmt(jA)}</span>`:'',
+    gA?`<span class="rc rc-G">G ${fmt(gA)}</span>`:'',
+    pA?`<span class="rc rc-p">私人 ${fmt(pA)}</span>`:'',
+    bA?`<span class="rc rc-b">事業 ${fmt(bA)}</span>`:'',
+  ].join('');
+  renderList(res,'search-list',false);
+};
+window.resetSearch = () => {
+  document.getElementById('s-from').value=''; document.getElementById('s-to').value=''; document.getElementById('s-kw').value='';
+  sSel={who:new Set(),type:new Set(),pay:new Set()};
+  document.querySelectorAll('.chip').forEach(c=>c.className='chip');
+  document.getElementById('result-box').classList.remove('show');
+  document.getElementById('search-list').style.display='none';
+  lastSearch=[];
+};
+
+// ── EXPORT ──
+window.exportCSV = mode => {
+  const mn=['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+  let list, filename;
+  if(mode==='month'){
+    list=records.filter(r=>r.month===monthKey());
+    if(!list.length){toast('這個月沒有記錄');return;}
+    filename=`JG記帳_${curYear}${mn[curMonth]}.csv`;
+  } else {
+    if(!lastSearch.length){toast('沒有查詢結果');return;}
+    list=lastSearch; filename='JG查詢結果.csv';
+  }
+  const rows=[['日期時間','誰','性質','付款方式','金額','備註','代付','已回收']];
+  [...list].sort((a,b)=>(a.dt||'')>(b.dt||'')?1:-1).forEach(r=>{
+    rows.push([r.dt||r.month,r.who==='J'?'Jovey':'Gracie',r.type==='p'?'私人':'事業',r.sub||(r.pay==='cash'?'現金':'刷卡'),r.amount,r.note||'',r.advance?'是':'否',r.recovered?'是':'否']);
+  });
+  const csv='\uFEFF'+rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));
+  a.download=filename; a.click(); toast('匯出完成 ✓');
+};
+
+// ── TOAST ──
+window.toast = msg => {
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2000);
+};
+
+// Register all functions as ready
+window._fbReady({
+  goPage, changeMonth, filterWho,
+  openAddSheet, closeAddSheet, fPick, fPickSub, fToggleAdv, saveAdd,
+  openEditSheet, closeEditSheet, ePick, ePickSub, eToggleAdv, saveEdit, doDelete, doDelId,
+  openAdvSheet, closeAdvSheet, recoverAdv,
+  saveBudget, toggleChip, togglePay, doSearch, resetSearch, exportCSV, toast
+});
+</script>
+</body>
+</html>
