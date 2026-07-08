@@ -342,6 +342,11 @@ input[type=datetime-local],input[type=date]{color-scheme:light;}
       </div>
       <div class="frow">
         <label>付款方式</label>
+        <div class="chips" style="margin-bottom:8px">
+          <div class="chip" id="sc-all-pay"  onclick="selectAllPay()"   style="border-color:var(--ink);font-weight:700">全選</div>
+          <div class="chip" id="sc-cash-all" onclick="selectCashPay()"  >現金類</div>
+          <div class="chip" id="sc-card-all" onclick="selectCardPay()"  >信用卡類</div>
+        </div>
         <div class="chips">
           <div class="chip" id="sc-現金"     onclick="togglePay('現金')"    >現金</div>
           <div class="chip" id="sc-Debit卡"  onclick="togglePay('Debit卡')" >Debit 卡</div>
@@ -1028,6 +1033,37 @@ window.toggleChip = (grp,val) => {
   if(set.has(val)){set.delete(val);el.className='chip';}
   else{set.add(val);el.className='chip on-'+val;}
 };
+const CASH_METHODS = ['現金','Debit卡'];
+const CARD_METHODS = ['中信（正）','中信（副）','星展（正）','星展（副）','Line Pay','台新','華南'];
+const ALL_PAY_METHODS = ['現金','Debit卡','中信（正）','中信（副）','星展（正）','星展（副）','Line Pay','台新','華南'];
+
+function setPayChips(methods) {
+  ALL_PAY_METHODS.forEach(v => {
+    const el = document.getElementById('sc-'+v);
+    if(el) el.className = 'chip' + (methods.includes(v) ? ' on-pay' : '');
+    if(methods.includes(v)) sSel.pay.add(v); else sSel.pay.delete(v);
+  });
+}
+
+window.selectAllPay = () => {
+  setPayChips(ALL_PAY_METHODS);
+  document.getElementById('sc-all-pay').className='chip on-pay';
+  document.getElementById('sc-cash-all').className='chip';
+  document.getElementById('sc-card-all').className='chip';
+};
+window.selectCashPay = () => {
+  setPayChips(CASH_METHODS);
+  document.getElementById('sc-all-pay').className='chip';
+  document.getElementById('sc-cash-all').className='chip on-pay';
+  document.getElementById('sc-card-all').className='chip';
+};
+window.selectCardPay = () => {
+  setPayChips(CARD_METHODS);
+  document.getElementById('sc-all-pay').className='chip';
+  document.getElementById('sc-cash-all').className='chip';
+  document.getElementById('sc-card-all').className='chip on-pay';
+};
+
 window.togglePay = val => {
   const set=sSel.pay, el=document.getElementById('sc-'+val);
   if(set.has(val)){set.delete(val);el.className='chip';}
@@ -1064,6 +1100,9 @@ window.resetSearch = () => {
   document.getElementById('s-from').value=''; document.getElementById('s-to').value=''; document.getElementById('s-kw').value='';
   sSel={who:new Set(),type:new Set(),pay:new Set()};
   document.querySelectorAll('.chip').forEach(c=>c.className='chip');
+  document.getElementById('sc-all-pay').className='chip';
+  document.getElementById('sc-cash-all').className='chip';
+  document.getElementById('sc-card-all').className='chip';
   document.getElementById('result-box').classList.remove('show');
   document.getElementById('search-list').style.display='none';
   lastSearch=[];
